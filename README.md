@@ -83,13 +83,10 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 ```
 ### 5. Получение токена Telegram-бота
 ```
-Перейдите к @BotFather в Telegram
-
-Отправьте команду /newbot
-
-Следуйте инструкциям для создания бота
-
-Скопируйте полученный API-токен
+- Перейдите к @BotFather в Telegram
+- Отправьте команду /newbot
+- Следуйте инструкциям для создания бота
+- Скопируйте полученный API-токен
 ```
 ### 6. Настройка окружения
 ```
