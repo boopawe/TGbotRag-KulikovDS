@@ -59,26 +59,30 @@ TG_RAG_Bot:
 
 ### 1. Клонирование репозитория
 
-```bash
+```
 git clone https://github.com/ваш-username/TG_RAG_Bot
 cd TG_RAG_Bot
-
+```
 ### 2. Создание виртуального окружения
+```
 python -m venv venv
 venv\Scripts\activate
-
+```
 ### 3. Установка зависимостей
+```
 pip install -r requirements.txt
-
+```
 
 ### 4. Установка PyTorch
+```
 # Для CUDA 11.8
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 # Для CUDA 12.1
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-
+```
 ### 5. Получение токена Telegram-бота
+```
 Перейдите к @BotFather в Telegram
 
 Отправьте команду /newbot
@@ -86,9 +90,12 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 Следуйте инструкциям для создания бота
 
 Скопируйте полученный API-токен
-
+```
 ### 6. Настройка окружения
-
+```
 BOT_KEY=ваш_токен_бота
+```
 ### 7. Запуск бота
+```
 python run.py
+```
