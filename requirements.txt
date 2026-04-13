@@ -1,0 +1,6 @@
+aiogram==3.27.0
+chromadb==1.5.7
+transformers==4.36.0
+torch>=2.0.0
+python-dotenv==1.2.2
+accelerate==0.25.0
