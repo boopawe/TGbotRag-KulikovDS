@@ -130,6 +130,153 @@ python run.py
 - создаётся папка `vector_store/` с векторной базой ChromaDB;  
 - загружаются стартовые факты по астрофизике.
 
+## 3. Листинги кода (ключевые фрагменты)
+
+### `database.py` — векторная база знаний (ChromaDB)
+
+Самое важное, что делает файл:
+
+- **Инициализация клиента и коллекции**  
+  ```python
+  self.client = chromadb.PersistentClient(path=storage_path)
+  self.collection = self.client.get_collection(self.collection_name)
+  ```
+  Хранит векторную БД на диске и работает с конкретной collection, где есть ваши факты.
+
+- **Добавление нового факта**
+  ```python
+  record_id = str(uuid.uuid4())
+  self.collection.add(documents=[text_content], ids=[record_id])
+  ```
+  Каждый фрагмент текста сохраняется как документ с уникальным `id` — это основа базы знаний.
+
+- **Поиск похожих фактов**
+  ```python
+  search_results = self.collection.query(query_texts=[query_text], n_results=results_count)
+  return "\n".join(search_results['documents'])
+  ```
+  По запросу пользователя ищет ближайшие по векторам фрагменты и возвращает их как контекст для LLM.
+
+- **Получение всех записей и очистка базы**
+  ```python
+  all_data = self.collection.get()
+  formatted_records = [f"{idx}. {record}" for idx, record in enumerate(all_data['documents'], 1)]
+  return "\n".join(formatted_records)
+
+  all_ids = self.collection.get()['ids']
+  self.collection.delete(ids=all_ids)
+  ```
+  Позволяют отдельной командой `/get_all` смотреть весь контент базы и `/clear_db` — полностью очистить её.
+
+---
+
+### `llm.py` — интерфейс к LLM‑модели TinyLlama‑1.1B
+
+Самое важное, что делает файл:
+
+- **Загрузка модели и токенайзера**
+  ```python
+  self.token_processor = AutoTokenizer.from_pretrained(model_path)
+  self.language_model = AutoModelForCausalLM.from_pretrained(
+      model_path,
+      torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+  )
+  self.language_model = self.language_model.to(self.device)
+  ```
+  Загружает локальную модель `TinyLlama/TinyLlama-1.1B-Chat-v1.0` на CPU или GPU в half‑precision для экономии памяти.
+
+- **Формирование промпта с системным инструктажем**
+  ```python
+  formatted_prompt = f"""<|system|>
+  Ты полезный ассистент. Отвечай подробно и развёрнуто.</s>
+  <|user|>
+  {user_input}</s>
+  <|assistant|>"""
+  ```
+  Использует чат‑формат токенов, который модель ожидает: `system` → `user` → `assistant`.
+
+- **Генерация ответа с параметрами**
+  ```python
+  generated_outputs = self.language_model.generate(
+      **input_tensors,
+      max_new_tokens=max_length,
+      temperature=0.7,
+      do_sample=True,
+      top_p=0.95,
+      top_k=50,
+      repetition_penalty=1.15
+  )
+  ```
+  Использует `top‑k`, `top‑p`, `repetition_penalty` и `temperature=0.7` для баланса между креативностью и стабильностью ответа.
+
+- **Обрезка и фильтрация результата**
+  ```python
+  if len(final_response) > 500:
+      final_response = final_response[:500] + "..."
+  ```
+  Ограничивает длину ответа, чтобы не «сломать» Telegram‑сообщение и не дать слишком длинному повторяющемуся тексту.
+
+---
+
+### `run.py` — Telegram‑бот с RAG‑логикой
+
+Самое важное, что делает файл:
+
+- **Команды бота (основа RAG‑интерфейса)**
+  ```python
+  commands_list = [
+      BotCommand(command="add", description="Добавить факт: /add <текст>"),
+      BotCommand(command="get_all", description="Показать все факты"),
+      BotCommand(command="generate", description="Ответ ИИ без базы"),
+      BotCommand(command="rag", description="Ответ с поиском"),
+      BotCommand(command="clear_db", description="Очистить базу данных")
+  ]
+  ```
+  Именно эти команды формируют UX бота и разделяют режимы без/с базой.
+
+- **Добавление факта в базу**
+  ```python
+  @dp.message(Command("add"))
+  async def add_fact(message: Message):
+      fact = message.text.replace("/add", "").strip()
+      knowledge_base.store_information(fact)
+  ```
+  Любой введённый `/add ...` сохраняется в векторную базу как новый документ.
+
+- **Прямой ответ LLM без RAG**
+  ```python
+  @dp.message(Command("generate"))
+  async def generate(message: Message):
+      prompt = message.text.replace("/generate", "").strip()
+      answer = await asyncio.wait_for(
+          asyncio.get_event_loop().run_in_executor(None, ai_model.get_response, prompt),
+          timeout=45.0
+      )
+  ```
+  Отправляет чистый текст запроса в модель **без** подтягивания контекста из базы — это «контрольный» режим.
+
+- **Режим RAG (с поиском по базе)**
+  ```python
+  context = knowledge_base.find_similar(query, results_count=2)
+  prompt = f"""На основе следующей информации из базы знаний ответь на вопрос пользователя...
+  Информация из базы знаний:
+  {context}
+  Вопрос пользователя: {query}
+  """
+  answer = ai_model.get_response(prompt)
+  ```
+  Сначала ищет 2 ближайших факта, формирует контекстный промпт и получает ответ LLM, **обогащённый знаниями из вашей базы**.
+
+- **Очистка базы**
+  ```python
+  @dp.message(Command("clear_db"))
+  async def clear_db(message: Message):
+      knowledge_base.clear_all_records()
+  ```
+  Полностью сбрасывает все векторные записи через `collection.delete(ids=all_ids)`.
+
+
+
 ## Примеры использования
 
 ### **Попытка #1**
