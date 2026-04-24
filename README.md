@@ -42,13 +42,13 @@ Telegram‑бот, реализующий метод Retrieval‑Augmented Gener
 Проект имеет следующую структуру:
 
 
-TG_RAG_Bot:
-- run.py # Главный файл бота (Telegram-логика)
-- database.py # Класс для работы с ChromaDB
-- llm.py # Класс для работы с моделью TinyLlama
-- .env # Файл с токеном Telegram-бота
-- requirements.txt # Зависимости проекта
-- README.md # Документация
+TG_RAG_Bot/
+├── run.py          # Главный файл бота: Telegram-логика и запуск приложения
+├── database.py     # Класс для работы с ChromaDB и векторным хранилищем
+├── llm.py          # Класс для взаимодействия с моделью TinyLlama
+├── .env            # Файл с токеном Telegram-бота и переменными окружения
+├── requirements.txt# Список зависимостей проекта
+└── README.md       # Документация проекта
 
 
 
