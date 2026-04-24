@@ -1,7 +1,3 @@
-<div align="center">
-  <h1 align="center">Telegram RAG Bot</h1>
-  <h4 align="center">Telegram-бот с системой RAG на базе TinyLlama и ChromaDB</h4>
-
 
 ## О проекте
 
